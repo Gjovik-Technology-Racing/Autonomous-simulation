@@ -1,0 +1,10 @@
+{
+  "track": {
+    "file": "components/track/data/shell_2026.txt",
+    "cell_size_m": 10.0,
+    "width_m": 5.0,
+    "mesh_resolution_m": 0.5,
+    "corner_rounding": 0.45,
+    "line_width_m": 0.25
+  }
+}
