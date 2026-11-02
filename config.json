@@ -1,3 +1,4 @@
+
 {
   "track": {
     "file": "components/track/data/shell_2026.txt",
@@ -6,6 +7,21 @@
     "mesh_resolution_m": 0.5,
     "corner_rounding": 0.45,
     "line_width_m": 0.30
+  },
+  "simulation": {
+    "debug_pov": {
+      "enabled": true,
+      "fov_deg": 75,
+      "height_m": 0.8,
+      "lookahead_m": 6.0
+    },
+    "hud": {
+      "enabled": true,
+      "fields": [
+        "speed_kmh",
+        "steering_deg"
+      ]
+    }
   },
   "architecture": "camera_only/try_1"
 }
