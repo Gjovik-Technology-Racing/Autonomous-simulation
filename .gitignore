@@ -1,3 +1,6 @@
 .venv
 __pycache__/
 *.pyc
+# Architecture-owned generated data
+architectures/*/*/data/*
+!architectures/*/*/data/.gitkeep
