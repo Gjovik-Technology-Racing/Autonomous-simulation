@@ -1,0 +1,28 @@
+
+{
+  "camera": {
+    "model": "Arducam Mira220 EK035",
+    "specifications": {
+      "shutter": "global",
+      "color_filter": "RGB-IR",
+      "exposure_range_us": [12, 33333],
+      "modes": [
+        {
+          "resolution": [1600, 1400],
+          "max_fps": 30,
+          "horizontal_fov_deg": 68.0
+        },
+        {
+          "resolution": [640, 480],
+          "max_fps": 80,
+          "horizontal_fov_deg": null
+        }
+      ]
+    },
+    "settings": {
+      "resolution": [1600, 1400],
+      "fps": 30,
+      "exposure_us": 1000
+    }
+  }
+}

@@ -6,5 +6,6 @@
     "mesh_resolution_m": 0.5,
     "corner_rounding": 0.45,
     "line_width_m": 0.30
-  }
+  },
+  "architecture": "camera_only/try_1"
 }
