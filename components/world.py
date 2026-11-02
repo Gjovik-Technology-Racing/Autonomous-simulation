@@ -267,6 +267,8 @@ class GTRWorld(ShowBase):
         self.camera_buffer = self.win.makeTextureBuffer('physical-camera', camera.width, camera.height, to_ram=True)
         if not self.camera_buffer:
             raise RuntimeError('Unable to create camera buffer')
+        self.camera_buffer.setClearColor((0.65, 0.80, 0.95, 1))
+        self.camera_buffer.setClearColorActive(True)
         self.camera_buffer.setActive(False)
         self.camera_node = self.makeCamera(self.camera_buffer, lens=lens)
         self.camera_node.reparentTo(self.car_node)

@@ -79,6 +79,8 @@ class Simulation:
                 controller.stop()
             except Exception as exc:
                 self.reason = self.reason or f'Architecture stop error: {exc}'
+                self.status = 'FAILED'
+                self.reset_car()
         if self.sensor_view:
             self.sensor_view.stop_camera()
 

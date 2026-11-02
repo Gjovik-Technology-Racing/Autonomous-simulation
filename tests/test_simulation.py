@@ -83,6 +83,26 @@ class SimulationTests(unittest.TestCase):
         self.car.x_m, self.car.y_m = end - tangent * self.car.length_m / 2
         self.assertTrue(self.sim.finished())
 
+    def test_driven_departure_and_finished_lifecycle(self):
+        self.controller("return {'steering_deg': 25, 'acceleration_mps2': 1}")
+        self.sim.start()
+        for _ in range(600):
+            if self.sim.status != 'RUNNING': break
+            self.sim.step()
+        self.assertEqual(self.sim.status, 'FAILED')
+        self.assertIn('track', self.sim.reason)
+        self.assertEqual(self.car.speed_mps, 0)
+        self.sim.start()
+        self.assertEqual(self.sim.status, 'RUNNING')
+        end = self.sim.track.centerline_m[-1]
+        tangent = end - self.sim.track.centerline_m[-2]
+        tangent /= math.hypot(*tangent)
+        self.car.heading_rad = math.atan2(tangent[1], tangent[0])
+        self.car.x_m, self.car.y_m = end - tangent * (self.car.length_m / 2 - 0.001)
+        self.sim.step()
+        self.assertEqual(self.sim.status, 'FINISHED')
+        self.assertIsNone(self.sim.controller)
+
     def test_initialization_error_and_stop(self):
         path = self.root / 'architectures/test/example/controller.py'
         path.write_text("class Controller:\n def __init__(self, config, data_dir): self.data_dir=data_dir\n def start(self): raise RuntimeError('start broke')\n def stop(self): (self.data_dir / 'stopped').touch()\n", encoding='utf-8')

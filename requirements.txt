@@ -1,6 +1,2 @@
 numpy>=1.24,<3
-opencv-python>=4.8,<5
-torch
-transformers>=4.40,<5
-pillow
 panda3d==1.10.16
