@@ -1,7 +1,7 @@
 """Create and select small, self-contained architecture implementations."""
 import json
 from pathlib import Path
-from components.simulation import architecture_path
+from components.architecture import architecture_path
 
 ROOT = Path(__file__).resolve().parent
 SKELETON = '''"""Stationary architecture skeleton."""

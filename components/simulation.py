@@ -2,28 +2,13 @@
 import importlib.util
 import json
 import math
-import re
-from pathlib import Path
 
 import numpy as np
 
+from components.architecture import architecture_path
 from components.vehicle_interface_class import VehicleInterface
 from components.speedsensor_class import SpeedSensor
 from components.steeringsensor_class import SteeringSensor
-
-NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_-]*$')
-
-
-def architecture_path(root, name):
-    parts = name.split('/') if isinstance(name, str) else []
-    if len(parts) != 2 or not all(NAME.fullmatch(p) for p in parts):
-        raise ValueError('Architecture must be family/implementation')
-    base = (Path(root) / 'architectures').resolve()
-    path = (base / parts[0] / parts[1]).resolve()
-    if not path.is_relative_to(base):
-        raise ValueError('Architecture path escapes architectures directory')
-    return path
-
 
 def load_architecture(root, name):
     path = architecture_path(root, name)

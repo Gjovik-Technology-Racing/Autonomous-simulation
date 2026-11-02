@@ -6,15 +6,16 @@ from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import (Camera, CardMaker, Geom, GeomNode, GeomTriangles,
     GeomVertexData, GeomVertexFormat, GeomVertexWriter, PerspectiveLens,
-    TextNode, Texture)
+    TextNode, Texture, loadPrcFileData)
 from components.camera_class import Camera as CameraDescription
 
 
 class GTRWorld(ShowBase):
     def __init__(self, track, car, simulation_config=None):
+        loadPrcFileData("", "win-size 1280 800")
         super().__init__()
         self.track, self.car = track, car
-        self.config = simulation_config or {}
+        self.simulation_config = simulation_config or {}
         self.simulation = None
         self.camera_buffer = self.camera_node = None
         self.camera_frame = None
@@ -36,9 +37,12 @@ class GTRWorld(ShowBase):
         self.update_vehicle_view()
 
     def _close(self):
+        self.userExit()
+
+    def userExit(self):
         if self.simulation:
             self.simulation.cleanup()
-        self.userExit()
+        super().userExit()
 
     def _tick(self, task):
         if self.simulation:
@@ -200,7 +204,7 @@ class GTRWorld(ShowBase):
 
     def _refresh_panel(self):
         sim = self.simulation
-        self.info.setText(f'Speed: {self.car.speed_mps * 3.6:.1f} km/h\nSteering: {self.car.steering_angle_deg:.1f} deg\n{sim.status}' + (f'\n{sim.reason}' if sim.reason else ''))
+        self.info.setText(f'Speed: {self.car.speed_mps * 3.6:.1f} km/h\nSteering: {self.car.steering_angle_deg:.1f} deg\n{sim.status}' + (f'\n{sim.reason[:80]}' if sim.reason else ''))
         self.button['text'] = 'Start' if sim.status == 'READY' else 'Restart'
         self.button['state'] = 'disabled' if sim.status == 'RUNNING' else 'normal'
 
@@ -232,11 +236,11 @@ class GTRWorld(ShowBase):
         self.info.setPos(x+margin, -text_y)
         self.info.setScale(min(panel_width*0.065, h*0.027))
         self.info['wordwrap'] = 14
-        self.button.setPos(x+panel_width/2, 0, -min(h*0.90, text_y+h*0.20))
+        self.button.setPos(x+panel_width/2, 0, -h*0.90)
         self.button.setScale(min(panel_width*0.09, h*0.035))
 
     def _create_debug_pov(self):
-        settings = self.config.get('debug_pov', {})
+        settings = self.simulation_config.get('debug_pov', {})
         self.debug_region = self.win.makeDisplayRegion(0.8, 1, 0.7, 1)
         self.debug_region.setSort(10)
         self.debug_region.setClearColorActive(True)
@@ -266,7 +270,7 @@ class GTRWorld(ShowBase):
         self.camera_buffer.setActive(False)
         self.camera_node = self.makeCamera(self.camera_buffer, lens=lens)
         self.camera_node.reparentTo(self.car_node)
-        mount = self.config.get('camera_mount', {})
+        mount = self.simulation_config.get('camera_mount', {})
         self.camera_node.setPos(*mount.get('position_m', [0, 0, 0.8]))
         self.camera_node.setHpr(*mount.get('hpr_deg', [0, 0, 0]))
         self.next_capture_s = 0.0
