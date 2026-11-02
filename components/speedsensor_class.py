@@ -54,5 +54,5 @@ class SpeedSensor:
             return None
         value = true_speed_mps + self._rng.gauss(0.0, self.noise_std_mps)
         value = max(self.min_speed_mps, min(self.max_speed_mps, value))
-        self._next_sample_s = time_s + self.sample_period_s
+        self._next_sample_s += self.sample_period_s
         return {"time_s": time_s, "speed_mps": value}

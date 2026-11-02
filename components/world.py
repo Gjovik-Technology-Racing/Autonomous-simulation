@@ -1,50 +1,51 @@
-
-"""3D world visualization. No driving or control logic."""
-
+"""World rendering, camera previews, and the minimal simulation panel."""
 import math
-
-from direct.gui.DirectGui import DirectFrame
+import numpy as np
+from direct.gui.DirectGui import DirectButton, DirectFrame
 from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
-from panda3d.core import (
-    Camera,
-    CardMaker,
-    Geom,
-    GeomNode,
-    GeomTriangles,
-    GeomVertexData,
-    GeomVertexFormat,
-    GeomVertexWriter,
-    PerspectiveLens,
-    TextNode,
-)
+from panda3d.core import (Camera, CardMaker, Geom, GeomNode, GeomTriangles,
+    GeomVertexData, GeomVertexFormat, GeomVertexWriter, PerspectiveLens,
+    TextNode, Texture)
+from components.camera_class import Camera as CameraDescription
 
 
 class GTRWorld(ShowBase):
-
     def __init__(self, track, car, simulation_config=None):
         super().__init__()
-
-        self.track = track
-        self.car = car
+        self.track, self.car = track, car
         self.config = simulation_config or {}
-
+        self.simulation = None
+        self.camera_buffer = self.camera_node = None
+        self.camera_frame = None
         self.disableMouse()
         self.setBackgroundColor(0.65, 0.80, 0.95)
-
         self._create_ground()
         self._create_road()
         self._position_overview()
-
-        self._spawn_car()
         self._create_car_visual()
-
+        self._create_panel()
         self._create_debug_pov()
-        self._create_hud()
+        self.accept('window-event', self._layout)
+        self._layout(self.win)
+        self.taskMgr.add(self._tick, 'simulation-update')
+        self.accept('escape', self._close)
 
-    # ---------------------------------------------
-    # WORLD
-    # ---------------------------------------------
+    def set_simulation(self, simulation):
+        self.simulation = simulation
+        self.update_vehicle_view()
+
+    def _close(self):
+        if self.simulation:
+            self.simulation.cleanup()
+        self.userExit()
+
+    def _tick(self, task):
+        if self.simulation:
+            self.simulation.advance(self.clock.getDt())
+            self.update_vehicle_view()
+            self._refresh_panel()
+        return task.cont
 
     def _create_ground(self):
         x0, x1, y0, y1 = self.track.bounds_m
@@ -130,40 +131,6 @@ class GTRWorld(ShowBase):
             1, max(1000, extent * 5)
         )
 
-    # ---------------------------------------------
-    # CAR VISUALIZATION
-    # ---------------------------------------------
-
-    def _spawn_car(self):
-        points = self.track.centerline_m
-
-        # Spawn far enough inside the track that the
-        # vehicle is not hanging over the start edge.
-        index = min(
-            len(points) - 1,
-            max(
-                1,
-                round(
-                    (self.car.length_m / 2 + 0.5)
-                    / self.track.mesh_resolution_m
-                ),
-            ),
-        )
-
-        start = points[index]
-        ahead = points[min(index + 1, len(points) - 1)]
-
-        self.car.x_m = float(start[0])
-        self.car.y_m = float(start[1])
-
-        self.car.heading_rad = math.atan2(
-            float(ahead[1] - start[1]),
-            float(ahead[0] - start[0]),
-        )
-
-        self.car.speed_mps = 0.0
-        self.car.steering_angle_deg = 0.0
-
     def _create_car_visual(self):
         self.car_node = self.render.attachNewNode("car")
 
@@ -212,109 +179,133 @@ class GTRWorld(ShowBase):
             0,
         )
 
-        if hasattr(self, "hud_text"):
-            self._refresh_hud()
+    def _create_panel(self):
+        self.panel = DirectFrame(parent=self.pixel2d, frameColor=(0.08, 0.10, 0.12, 1))
+        self.info = OnscreenText(parent=self.pixel2d, align=TextNode.ALeft,
+                                 fg=(1, 1, 1, 1), mayChange=True)
+        self.button = DirectButton(parent=self.pixel2d, text='Start', command=self._start,
+                                   relief=1, frameColor=(0.65, 0.7, 0.75, 1))
+        self.preview_texture = Texture('camera preview')
+        card = CardMaker('camera preview')
+        card.setFrame(0, 1, -1, 0)
+        self.preview = self.pixel2d.attachNewNode(card.generate())
+        self.preview.setTexture(self.preview_texture)
+        self.preview.hide()
 
-    # ---------------------------------------------
-    # DEBUG POV
-    # ---------------------------------------------
+    def _start(self):
+        if self.simulation:
+            self.simulation.start()
+            self.update_vehicle_view()
+            self._refresh_panel()
+
+    def _refresh_panel(self):
+        sim = self.simulation
+        self.info.setText(f'Speed: {self.car.speed_mps * 3.6:.1f} km/h\nSteering: {self.car.steering_angle_deg:.1f} deg\n{sim.status}' + (f'\n{sim.reason}' if sim.reason else ''))
+        self.button['text'] = 'Start' if sim.status == 'READY' else 'Restart'
+        self.button['state'] = 'disabled' if sim.status == 'RUNNING' else 'normal'
+
+    def _layout(self, window):
+        if window != self.win or not self.win.getXSize() or not self.win.getYSize():
+            return
+        w, h = self.win.getXSize(), self.win.getYSize()
+        self.camNode.getDisplayRegion(0).setDimensions(0, 0.8, 0, 1)
+        self.camLens.setAspectRatio(0.8 * w / h)
+        x, panel_width = 0.8*w, 0.2*w
+        self.panel.setPos(x, 0, 0)
+        self.panel['frameSize'] = (0, panel_width, -h, 0)
+        margin = panel_width * 0.05
+        preview_width = panel_width - 2*margin
+        # Both previews have fixed aspect ratios and remain within their panel slots.
+        debug_height = min(preview_width * 0.75, h * 0.25)
+        debug_width = debug_height / 0.75
+        dx = x + (panel_width-debug_width)/2
+        top = h*0.03
+        self.debug_region.setDimensions(dx/w, (dx+debug_width)/w, 1-(top+debug_height)/h, 1-top/h)
+        self.debug_lens.setAspectRatio(4/3)
+        cam_top = top + debug_height + h*0.025
+        ratio = self.camera_description.width / self.camera_description.height if self.camera_buffer else 4/3
+        cam_height = min(preview_width / ratio, h*0.25)
+        cam_width = cam_height*ratio
+        self.preview.setPos(x+(panel_width-cam_width)/2, 0, -cam_top)
+        self.preview.setScale(cam_width, 1, cam_height)
+        text_y = cam_top + cam_height + h*0.04
+        self.info.setPos(x+margin, -text_y)
+        self.info.setScale(min(panel_width*0.065, h*0.027))
+        self.info['wordwrap'] = 14
+        self.button.setPos(x+panel_width/2, 0, -min(h*0.90, text_y+h*0.20))
+        self.button.setScale(min(panel_width*0.09, h*0.035))
 
     def _create_debug_pov(self):
-        settings = self.config.get("debug_pov", {})
+        settings = self.config.get('debug_pov', {})
+        self.debug_region = self.win.makeDisplayRegion(0.8, 1, 0.7, 1)
+        self.debug_region.setSort(10)
+        self.debug_region.setClearColorActive(True)
+        self.debug_region.setClearColor((0.65, 0.80, 0.95, 1))
+        self.debug_region.setClearDepthActive(True)
+        self.debug_lens = PerspectiveLens()
+        self.debug_lens.setFov(settings.get('fov_deg', 75))
+        self.debug_lens.setNearFar(0.05, 1500)
+        self.pov_camera = self.car_node.attachNewNode(Camera('debug_pov'))
+        self.pov_camera.node().setLens(self.debug_lens)
+        self.pov_camera.setPos(0, self.car.length_m*0.2, settings.get('height_m', 0.8))
+        self.pov_camera.lookAt(self.car_node, 0, self.car.length_m*0.2 + settings.get('lookahead_m', 6), 0.02)
+        self.debug_region.setCamera(self.pov_camera)
 
-        if not settings.get("enabled", True):
+    def start_camera(self, config):
+        self.stop_camera()
+        if not config or not config.get('enabled', True):
             return
-
-        region = self.win.makeDisplayRegion(
-            0.7, 1, 0.70, 1.0
-        )
-
-        region.setSort(10)
-        region.setClearColorActive(True)
-        region.setClearColor((0.65, 0.80, 0.95, 1))
-        region.setClearDepthActive(True)
-
+        self.camera_description = CameraDescription.from_config(config)
+        camera = self.camera_description
         lens = PerspectiveLens()
-        lens.setFov(settings.get("fov_deg", 75))
-
-        width = 0.29 * self.win.getXSize()
-        height = 0.31 * self.win.getYSize()
-
-        lens.setAspectRatio(width / height)
+        lens.setFov(*camera.fov_deg)
         lens.setNearFar(0.05, 1500)
+        self.camera_buffer = self.win.makeTextureBuffer('physical-camera', camera.width, camera.height, to_ram=True)
+        if not self.camera_buffer:
+            raise RuntimeError('Unable to create camera buffer')
+        self.camera_buffer.setActive(False)
+        self.camera_node = self.makeCamera(self.camera_buffer, lens=lens)
+        self.camera_node.reparentTo(self.car_node)
+        mount = self.config.get('camera_mount', {})
+        self.camera_node.setPos(*mount.get('position_m', [0, 0, 0.8]))
+        self.camera_node.setHpr(*mount.get('hpr_deg', [0, 0, 0]))
+        self.next_capture_s = 0.0
+        self.camera_frame = None
+        self._layout(self.win)
 
-        self.pov_camera = self.car_node.attachNewNode(
-            Camera("debug_pov")
-        )
-        self.pov_camera.node().setLens(lens)
+    def capture_if_due(self, time_s):
+        if not self.camera_buffer:
+            return None
+        if time_s + 1e-10 >= self.next_capture_s:
+            # Synchronize the pose to this physics state before rendering the sensor.
+            self.update_vehicle_view()
+            self.camera_buffer.setActive(True)
+            try:
+                self.graphicsEngine.renderFrame()
+                tex = self.camera_buffer.getTexture()
+                raw = tex.getRamImageAs('RGB')
+                if not raw:
+                    raise RuntimeError('Camera frame unavailable')
+                self.camera_frame = np.frombuffer(raw, dtype=np.uint8).reshape(self.camera_description.height, self.camera_description.width, 3)[::-1].copy()
+                self.camera_frame.setflags(write=False)
+            finally:
+                self.camera_buffer.setActive(False)
+            # Panda textures use bottom-up rows; preview uses the captured pixels.
+            self.preview_texture.setup2dTexture(self.camera_description.width, self.camera_description.height, Texture.TUnsignedByte, Texture.FRgb8)
+            self.preview_texture.setRamImageAs(self.camera_frame[::-1].tobytes(), 'RGB')
+            self.preview.show()
+            self.next_capture_s += self.camera_description.frame_period_s
+            if self.next_capture_s <= time_s:
+                self.next_capture_s = time_s + self.camera_description.frame_period_s
+        return self.camera_frame
 
-        self.pov_camera.setPos(
-            0,
-            self.car.length_m * 0.20,
-            settings.get("height_m", 0.8),
-        )
-
-        # Look at the road ahead, not the sky.
-        self.pov_camera.lookAt(
-            self.car_node,
-            0,
-            self.car.length_m * 0.20
-            + settings.get("lookahead_m", 6.0),
-            0.02,
-        )
-
-        region.setCamera(self.pov_camera)
-
-    # ---------------------------------------------
-    # TELEMETRY
-    # ---------------------------------------------
-
-    def _create_hud(self):
-        settings = self.config.get("hud", {})
-
-        if not settings.get("enabled", True):
-            return
-
-        self.hud_fields = settings.get("fields", [
-            "speed_kmh",
-            "steering_deg",
-            "heading_deg",
-            "position_xy",
-        ])
-
-        DirectFrame(
-            parent=self.a2dTopLeft,
-            frameSize=(0, 0.68, -0.34, 0),
-            frameColor=(0.04, 0.06, 0.08, 0.85),
-            pos=(0.04, 0, -0.04),
-        )
-
-        self.hud_text = OnscreenText(
-            parent=self.a2dTopLeft,
-            text="",
-            pos=(0.08, -0.10),
-            align=TextNode.ALeft,
-            scale=0.037,
-            fg=(1, 1, 1, 1),
-            mayChange=True,
-        )
-
-        self._refresh_hud()
-
-    def _refresh_hud(self):
-        state = {
-            "speed_kmh": f"Speed: {self.car.speed_mps * 3.6:.1f} km/h",
-            "steering_deg": f"Steering: {self.car.steering_angle_deg:.1f} deg",
-            "heading_deg": f"Heading: {self.car.heading_deg:.1f} deg",
-            "position_xy": (
-                f"Position: {self.car.x_m:.1f}, "
-                f"{self.car.y_m:.1f} m"
-            ),
-        }
-
-        self.hud_text.setText(
-            "GTR / CAR STATE\n\n"
-            + "\n".join(
-                state[field] for field in self.hud_fields
-            )
-        )
+    def stop_camera(self):
+        if self.camera_node:
+            self.camera_node.removeNode()
+            self.camera_node = None
+        if self.camera_buffer:
+            self.graphicsEngine.removeWindow(self.camera_buffer)
+            self.camera_buffer = None
+        self.camera_frame = None
+        if hasattr(self, 'preview'):
+            self.preview.hide()

@@ -74,8 +74,12 @@ class Simulation:
             for key, cls in (('speed_sensor', SpeedSensor), ('steering_sensor', SteeringSensor)):
                 if settings.get(key) and settings[key].get('enabled', True):
                     self.sensors[key] = cls.from_config(settings[key])
+                    if self.sensors[key].update_hz > 1 / self.dt:
+                        raise ValueError(f'{key} update rate exceeds physics_hz')
             if self.sensor_view:
                 self.sensor_view.start_camera(settings.get('camera'))
+                if self.sensor_view.camera_buffer and self.sensor_view.camera_description.fps > 1 / self.dt:
+                    raise ValueError('Camera FPS exceeds physics_hz')
             elif settings.get('camera') and settings['camera'].get('enabled', True):
                 raise ValueError('Camera rendering is unavailable')
             self.controller.start()

@@ -55,5 +55,5 @@ class SteeringSensor:
             return None
         value = true_angle_deg + self._rng.gauss(0.0, self.noise_std_deg)
         value = max(self.min_angle_deg, min(self.max_angle_deg, value))
-        self._next_sample_s = time_s + self.sample_period_s
+        self._next_sample_s += self.sample_period_s
         return {"time_s": time_s, "steering_angle_deg": value}
