@@ -44,12 +44,13 @@ try:
     assert np.array_equal(tex[::-1], frame)
     sim.fail('test failure')
     assert sim.status == 'FAILED' and world.graphicsEngine.getNumWindows() == count
-    sim.start()
+    world._start()  # The Restart button invokes this callback.
     assert sim.status == 'RUNNING', sim.reason
     world.graphicsEngine.renderFrame()
     assert sim.time_s == 0 and world.graphicsEngine.getNumWindows() == count + 1
     sim.step()
     assert sim.status == 'RUNNING' and world.camera_frame is not None, sim.reason
+    assert len(world.taskMgr.getTasksNamed('simulation-update')) == 1
     props = WindowProperties()
     props.setSize(1000, 700)
     world.win.requestProperties(props)

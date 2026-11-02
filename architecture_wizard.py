@@ -60,7 +60,9 @@ def select(name, root=ROOT):
 
 def main():
     while True:
-        print('\nArchitectures:')
+        families = sorted(path.name for path in (ROOT / 'architectures').iterdir() if path.is_dir() and not path.name.startswith('__'))
+        print('\nFamilies: ' + (', '.join(families) or '(none)'))
+        print('Implementations:')
         for item in list_architectures():
             print('  ' + item)
         print('\n1. Create  2. Select  3. Quit')
