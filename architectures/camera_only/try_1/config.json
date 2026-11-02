@@ -1,28 +1,90 @@
-
 {
   "camera": {
     "model": "Arducam Mira220 EK035",
     "specifications": {
       "shutter": "global",
       "color_filter": "RGB-IR",
-      "exposure_range_us": [12, 33333],
+      "exposure_range_us": [
+        12,
+        33333
+      ],
       "modes": [
         {
-          "resolution": [1600, 1400],
+          "resolution": [
+            1600,
+            1400
+          ],
           "max_fps": 30,
           "horizontal_fov_deg": 68.0
         },
         {
-          "resolution": [640, 480],
+          "resolution": [
+            640,
+            480
+          ],
           "max_fps": 80,
           "horizontal_fov_deg": null
         }
       ]
     },
     "settings": {
-      "resolution": [1600, 1400],
+      "resolution": [
+        1600,
+        1400
+      ],
       "fps": 30,
       "exposure_us": 1000
+    }
+  },
+  "car": {
+    "model": "GTR 2026 Urban Concept (design-review geometry; provisional dynamics)",
+    "specifications": {
+      "length_m": 3.13,
+      "width_m": 1.2,
+      "height_m": 0.9,
+      "wheelbase_m": 1.6,
+      "max_speed_mps": 8.0,
+      "max_steering_angle_deg": 25.0,
+      "max_acceleration_mps2": 1.0,
+      "max_braking_mps2": 2.0
+    },
+    "settings": {
+      "initial_position_xy_m": [
+        0.0,
+        0.0
+      ],
+      "initial_heading_deg": 0.0,
+      "initial_speed_mps": 0.0
+    }
+  },
+  "speed_sensor": {
+    "model": "Generic vehicle-speed feedback (UNVERIFIED)",
+    "specifications": {
+      "measurement": "vehicle_speed",
+      "range_mps": [
+        0.0,
+        15.0
+      ],
+      "max_update_hz": 50.0
+    },
+    "settings": {
+      "update_hz": 20.0,
+      "noise_std_mps": 0.0
+    }
+  },
+  "steering_sensor": {
+    "model": "Generic steering feedback (UNVERIFIED)",
+    "specifications": {
+      "measurement": "road_wheel_angle",
+      "range_deg": [
+        -30.0,
+        30.0
+      ],
+      "max_update_hz": 50.0
+    },
+    "settings": {
+      "update_hz": 20.0,
+      "noise_std_deg": 0.0
     }
   }
 }
