@@ -1,6 +1,5 @@
 """A stationary example; replace with an architecture's own logic."""
 
-
 class Controller:
     def __init__(self, config, data_dir):
         self.config = config
